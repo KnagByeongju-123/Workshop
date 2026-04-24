@@ -77,21 +77,20 @@ body::after{
 .stat .lab{color:var(--muted);margin-right:4px;font-size:7px}
 .stat .val{color:var(--neon-y);font-weight:600}
 
-.game-body{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px;overflow:hidden;gap:10px}
-.board-wrap{position:relative;display:flex;gap:10px;align-items:flex-start}
+.game-body{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px;overflow:hidden;gap:8px;min-height:0}
+.board-wrap{position:relative;display:flex;gap:8px;align-items:flex-start;flex-shrink:1;min-height:0}
 #boardCanvas{background:#000;border:3px solid var(--neon-c);border-radius:4px;box-shadow:0 0 20px rgba(0,255,255,.3),inset 0 0 20px rgba(0,0,0,.8);display:block;image-rendering:pixelated}
-.side-panel{display:flex;flex-direction:column;gap:10px;min-width:80px}
-.side-box{background:#000;border:2px solid var(--border);border-radius:4px;padding:8px}
-.side-label{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--neon-c);text-align:center;margin-bottom:6px;letter-spacing:.05em}
+.side-panel{display:flex;flex-direction:column;gap:8px;min-width:72px}
+.side-box{background:#000;border:2px solid var(--border);border-radius:4px;padding:6px}
+.side-label{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--neon-c);text-align:center;margin-bottom:5px;letter-spacing:.05em}
 #nextCanvas,#holdCanvas{display:block;margin:0 auto;image-rendering:pixelated}
 
-/* 모바일 컨트롤 */
-.controls{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;width:100%;max-width:400px;margin-top:auto;padding:8px}
-.ctrl-btn{background:var(--s1);border:2px solid var(--neon-p);border-radius:10px;color:var(--neon-y);font-family:'Press Start 2P',monospace;font-size:14px;padding:16px 8px;cursor:pointer;box-shadow:0 0 8px rgba(199,21,133,.3);transition:all .1s;min-height:56px;display:flex;align-items:center;justify-content:center}
-.ctrl-btn:active{transform:scale(.92);box-shadow:inset 0 0 15px rgba(255,255,0,.3)}
-.ctrl-btn.wide{grid-column:span 1}
-.ctrl-btn.rot{color:var(--neon-c);border-color:var(--neon-c);box-shadow:0 0 8px rgba(0,255,255,.3)}
-.ctrl-btn.drop{background:linear-gradient(135deg,var(--neon-r),#c41e3a);color:#fff;border-color:var(--neon-y);grid-column:span 3}
+/* 모바일 컨트롤 — 작고 컴팩트하게 */
+.controls{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto auto auto;gap:6px;width:100%;max-width:400px;padding:4px 8px 8px;flex-shrink:0}
+.ctrl-btn{background:var(--s1);border:2px solid var(--neon-p);border-radius:8px;color:var(--neon-y);font-family:'Press Start 2P',monospace;font-size:13px;padding:10px 4px;cursor:pointer;box-shadow:0 0 6px rgba(199,21,133,.3);transition:all .1s;min-height:44px;display:flex;align-items:center;justify-content:center}
+.ctrl-btn:active{transform:scale(.92);box-shadow:inset 0 0 12px rgba(255,255,0,.3)}
+.ctrl-btn.rot{color:var(--neon-c);border-color:var(--neon-c);box-shadow:0 0 6px rgba(0,255,255,.3)}
+.ctrl-btn.drop{background:linear-gradient(135deg,var(--neon-r),#c41e3a);color:#fff;border-color:var(--neon-y);grid-column:span 3;padding:12px;font-size:14px}
 
 /* 일시정지/게임오버 */
 .overlay{position:absolute;inset:0;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:16px;padding:20px;text-align:center}
@@ -539,11 +538,12 @@ function randomPiece() {
 }
 
 function resizeBoardCanvas() {
-  const maxH = window.innerHeight - 220;  // 상단바 + 컨트롤 + 여유
-  const maxW = window.innerWidth - 100;   // 사이드패널
+  // 화면 높이에서 상단바(50) + 컨트롤 3줄(~180) + 여유 공간 제외
+  const maxH = window.innerHeight - 260;
+  const maxW = window.innerWidth - 100;   // 사이드패널 공간
   const byH = Math.floor(maxH / ROWS);
   const byW = Math.floor(maxW / COLS);
-  cellSize = Math.max(16, Math.min(32, Math.min(byH, byW)));
+  cellSize = Math.max(14, Math.min(28, Math.min(byH, byW)));
   canvas.width = COLS * cellSize;
   canvas.height = ROWS * cellSize;
 }
@@ -992,31 +992,66 @@ document.addEventListener('DOMContentLoaded', () => {
   bind('btnGoMenu', () => { gameRunning = false; showScreen('lobbyScreen'); updateLobbyBest(); updateResumeCard(); });
   bind('btnSoundToggle', toggleSound);
 
-  // 컨트롤
-  const bindHold = (id, fn, initial=true) => {
+  // 컨트롤 — 모바일과 PC 중복 방지
+  const bindHold = (id, fn) => {
     const el = document.getElementById(id);
     if(!el) return;
     let intv = null;
-    const start = (e) => {
-      e.preventDefault();
-      if(initial) fn();
-      intv = setInterval(fn, 120);
+    let touchUsed = false;
+
+    const start = () => {
+      fn();  // 1번 클릭 = 1칸 이동
+      if(intv) clearInterval(intv);
+      // 꾹 누르면 300ms 대기 후 반복 (초기 클릭과 반복 간 분리)
+      intv = setTimeout(() => {
+        intv = setInterval(fn, 100);
+      }, 300);
     };
-    const stop = () => { if(intv) { clearInterval(intv); intv = null; } };
-    el.addEventListener('touchstart', start, {passive:false});
-    el.addEventListener('touchend', stop);
+    const stop = () => {
+      if(intv) { clearTimeout(intv); clearInterval(intv); intv = null; }
+    };
+
+    // 터치 이벤트 (모바일)
+    el.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      touchUsed = true;
+      start();
+    }, {passive:false});
+    el.addEventListener('touchend', (e) => { e.preventDefault(); stop(); });
     el.addEventListener('touchcancel', stop);
-    el.addEventListener('mousedown', start);
+
+    // 마우스 이벤트 (PC) — 터치가 먼저 발생하면 무시
+    el.addEventListener('mousedown', (e) => {
+      if(touchUsed) { touchUsed = false; return; }
+      start();
+    });
     el.addEventListener('mouseup', stop);
     el.addEventListener('mouseleave', stop);
   };
+
+  // 단일 클릭 버튼 (꾹 누르기 불필요)
+  const bindClick = (id, fn) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    let touchUsed = false;
+    el.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      touchUsed = true;
+      fn();
+    }, {passive:false});
+    el.addEventListener('click', (e) => {
+      if(touchUsed) { touchUsed = false; return; }
+      fn();
+    });
+  };
+
   bindHold('btnLeft', moveLeft);
   bindHold('btnRight', moveRight);
   bindHold('btnDown', softDrop);
-  bind('btnRotate', doRotate);
-  bind('btnRotateCCW', doRotateCCW);
-  bind('btnDrop', hardDrop);
-  bind('btnHold', doHold);
+  bindClick('btnRotate', doRotate);
+  bindClick('btnRotateCCW', doRotateCCW);
+  bindClick('btnDrop', hardDrop);
+  bindClick('btnHold', doHold);
 
   // 사운드 초기
   const snd = document.getElementById('btnSoundToggle');
