@@ -275,18 +275,18 @@ let SUPABASE_KEY = localStorage.getItem('sb_key') || '';
 // ── SETTINGS FUNCTIONS ──
 let _settingsFrom = 'lobby'; // 어디서 설정 화면 진입했는지
 
-function showSettings() {
+window.showSettings = function() {
   _settingsFrom = document.querySelector('.screen.active')?.id || 'lobbyScreen';
   showScreen('settingsScreen');
   loadConfigDisplay();
 }
 
-function settingsBack() {
+window.settingsBack = function() {
   showScreen(_settingsFrom);
   if (_settingsFrom === 'mapScreen') updateMap();
 }
 
-function toggleVis(inputId, btnId) {
+window.toggleVis = function(inputId, btnId) {
   const inp = document.getElementById(inputId);
   const btn = document.getElementById(btnId);
   if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
@@ -311,7 +311,7 @@ function loadConfigDisplay() {
   }
 }
 
-async function saveConfig() {
+window.saveConfig = async function() {
   const url = document.getElementById('cfgUrl').value.trim();
   const key = document.getElementById('cfgKey').value.trim();
   const st  = document.getElementById('cfgStatus');
@@ -348,7 +348,7 @@ async function saveConfig() {
   }
 }
 
-function clearConfig() {
+window.clearConfig = function() {
   if (!confirm('저장된 Supabase 설정을 삭제할까요?')) return;
   localStorage.removeItem('sb_url');
   localStorage.removeItem('sb_key');
@@ -896,6 +896,16 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
+
+// ── Expose functions to global scope for onclick handlers ──
+window.startGame = startGame;
+window.showMap = showMap;
+window.resetScores = resetScores;
+window.goMap = goMap;
+window.showLeaderboard = showLeaderboard;
+window.loadLeaderboard = loadLeaderboard;
+window.showScreen = showScreen;
+
 </script>
 </body>
 </html>
