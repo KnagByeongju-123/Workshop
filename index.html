@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎮 버추얼 코스 게임</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0f1a;--s1:#141528;--s2:#1c1e35;--border:#2a2d4a;
+  --p:#7c3aed;--p2:#a855f7;--y:#f59e0b;--g:#10b981;--r:#ef4444;--b:#3b82f6;
+  --text:#e2e8f0;--muted:#64748b;--rr:14px;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+#bgc{position:fixed;inset:0;z-index:0;pointer-events:none}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;z-index:1;overflow-y:auto;overflow-x:hidden}
+.screen.active{display:flex}
+
+/* ── LOBBY ── */
+#lobbyScreen{align-items:center;justify-content:center;padding:20px}
+.lobby-box{width:100%;max-width:500px;text-align:center}
+.game-title{font-family:'Jua',sans-serif;font-size:36px;background:linear-gradient(135deg,#a855f7,#3b82f6,#10b981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;animation:titlePop .6s ease}
+@keyframes titlePop{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+.game-sub{font-size:13px;color:var(--muted);margin-bottom:28px}
+.name-row{display:flex;gap:10px;margin-bottom:20px}
+.name-input{flex:1;background:var(--s2);border:2px solid var(--border);border-radius:10px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:15px;padding:12px 16px;outline:none;transition:border-color .2s}
+.name-input:focus{border-color:var(--p2)}
+.avatar-label{font-size:12px;color:var(--muted);margin-bottom:10px;text-align:left}
+.avatar-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:24px}
+.av-btn{background:var(--s2);border:2px solid var(--border);border-radius:12px;padding:10px 4px;cursor:pointer;font-size:24px;transition:all .15s;text-align:center}
+.av-btn:hover{border-color:var(--p2);transform:scale(1.05)}
+.av-btn.sel{border-color:var(--y);background:rgba(245,158,11,.12);transform:scale(1.08);box-shadow:0 0 16px rgba(245,158,11,.3)}
+.av-name{font-size:10px;color:var(--muted);margin-top:3px}
+.start-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--p),var(--b));border:none;border-radius:var(--rr);color:#fff;font-family:'Jua',sans-serif;font-size:20px;cursor:pointer;letter-spacing:.05em;transition:all .2s;box-shadow:0 4px 20px rgba(124,58,237,.4)}
+.start-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(124,58,237,.5)}
+.start-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* ── MAP ── */
+#mapScreen{padding:0}
+.map-header{background:var(--s1);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.player-badge{display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--border);border-radius:20px;padding:6px 14px}
+.player-av{font-size:22px}.player-name{font-size:14px;font-weight:700}
+.total-score{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--y)}
+.map-body{flex:1;padding:20px;overflow-y:auto}
+.map-title{font-family:'Jua',sans-serif;font-size:22px;text-align:center;margin-bottom:20px;color:var(--p2)}
+.course-list{display:flex;flex-direction:column;gap:12px}
+.course-card{background:var(--s1);border:2px solid var(--border);border-radius:var(--rr);padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.course-card:hover:not(.locked){border-color:var(--p2);transform:translateX(4px);box-shadow:0 0 20px rgba(168,85,247,.15)}
+.course-card.done{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.05)}
+.course-card.locked{opacity:.45;cursor:not-allowed}
+.course-card.next-up{border-color:var(--y);animation:pulseBorder 1.5s infinite}
+@keyframes pulseBorder{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.4)}50%{box-shadow:0 0 0 8px rgba(245,158,11,0)}}
+.c-num{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Jua',sans-serif;font-size:16px;flex-shrink:0}
+.c-emoji{font-size:28px;flex-shrink:0}
+.c-info{flex:1}
+.c-name{font-family:'Jua',sans-serif;font-size:16px;margin-bottom:2px}
+.c-desc{font-size:11px;color:var(--muted)}
+.c-score{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;flex-shrink:0}
+.map-btns{display:flex;gap:10px;padding:16px 20px;flex-shrink:0}
+.lb-btn{flex:1;padding:12px;background:var(--s2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Jua',sans-serif;font-size:15px;cursor:pointer;transition:all .2s}
+.lb-btn:hover{border-color:var(--y);color:var(--y)}
+.reset-btn{padding:12px 16px;background:var(--s2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;cursor:pointer;transition:all .2s}
+.reset-btn:hover{border-color:var(--r);color:var(--r)}
+
+/* ── GAME ── */
+#gameScreen{padding:0}
+.game-header{background:var(--s1);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.back-btn{background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:6px 12px;cursor:pointer}
+.game-title-sm{font-family:'Jua',sans-serif;font-size:18px;flex:1;text-align:center}
+.timer-badge{font-family:'JetBrains Mono',monospace;font-size:16px;color:var(--y);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:4px 12px}
+.game-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+.mini-wrap{width:100%;max-width:500px;text-align:center}
+.mini-instruction{font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.7}
+.big-score{font-family:'JetBrains Mono',monospace;font-size:48px;color:var(--y);margin:16px 0;text-shadow:0 0 20px rgba(245,158,11,.5)}
+
+/* 반응속도 */
+.reaction-target{width:160px;height:160px;border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:60px;cursor:pointer;transition:all .2s;border:4px solid var(--border)}
+.reaction-target.wait{background:rgba(239,68,68,.15);border-color:var(--r);animation:waitPulse 1s infinite}
+@keyframes waitPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.reaction-target.go{background:rgba(16,185,129,.2);border-color:var(--g);transform:scale(1.1);box-shadow:0 0 40px rgba(16,185,129,.4)}
+.reaction-target.done{background:rgba(59,130,246,.15);border-color:var(--b)}
+
+/* 클릭배틀 */
+.click-target{width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,var(--p),var(--b));border:none;font-size:36px;cursor:pointer;transition:all .1s;box-shadow:0 4px 20px rgba(124,58,237,.4);display:flex;align-items:center;justify-content:center;color:#fff}
+.click-target:active{transform:scale(.92)}
+.click-count{font-family:'JetBrains Mono',monospace;font-size:64px;color:var(--p2);margin:10px 0}
+.progress-bar{width:100%;height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:16px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--p),var(--b));border-radius:4px;transition:width .1s}
+
+/* 퀴즈 */
+.quiz-q{font-family:'Jua',sans-serif;font-size:20px;margin-bottom:20px;line-height:1.6;background:var(--s2);border-radius:12px;padding:20px}
+.quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quiz-opt{background:var(--s2);border:2px solid var(--border);border-radius:10px;padding:14px;font-size:14px;cursor:pointer;transition:all .15s;font-family:'Noto Sans KR',sans-serif}
+.quiz-opt:hover{border-color:var(--p2);background:rgba(168,85,247,.08)}
+.quiz-opt.correct{border-color:var(--g);background:rgba(16,185,129,.12);color:var(--g)}
+.quiz-opt.wrong{border-color:var(--r);background:rgba(239,68,68,.1);color:var(--r)}
+
+/* 기억력 */
+.mem-card{border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:28px;transition:all .2s;border:2px solid var(--border);width:52px;height:52px}
+.mem-card.face-down{background:var(--s2);font-size:0}
+.mem-card.face-up{background:rgba(168,85,247,.15);border-color:var(--p2);transform:scale(1.05)}
+.mem-card.matched{background:rgba(16,185,129,.1);border-color:var(--g);cursor:default}
+
+/* 타이핑 */
+.typing-target{font-family:'JetBrains Mono',monospace;font-size:17px;color:var(--y);background:var(--s2);border-radius:10px;padding:16px;margin-bottom:16px;line-height:1.9;word-break:break-all;text-align:left}
+.typing-input{width:100%;background:var(--s1);border:2px solid var(--border);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px;padding:12px;outline:none;transition:border-color .2s}
+.typing-input:focus{border-color:var(--p2)}
+.typing-correct{color:var(--g)}.typing-wrong{color:var(--r)}
+
+/* 스트룹 */
+.color-word{font-family:'Jua',sans-serif;font-size:52px;margin:10px 0}
+.color-opts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.color-opt{padding:12px 20px;border-radius:10px;border:2px solid transparent;font-family:'Jua',sans-serif;font-size:16px;cursor:pointer;transition:all .15s}
+.color-opt:hover{transform:scale(1.05)}
+
+/* 순서기억 */
+.seq-btn{width:60px;height:60px;border-radius:12px;border:none;font-size:24px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.seq-btn.highlight{transform:scale(1.15);filter:brightness(1.6);box-shadow:0 0 24px rgba(255,255,255,.35)}
+
+/* 결과 */
+.result-card{background:var(--s1);border:2px solid var(--border);border-radius:var(--rr);padding:24px;width:100%;max-width:400px;text-align:center}
+.result-emoji{font-size:56px;margin-bottom:12px;display:block;animation:bounceIn .5s ease}
+@keyframes bounceIn{0%{transform:scale(0)}70%{transform:scale(1.1)}100%{transform:scale(1)}}
+.result-msg{font-family:'Jua',sans-serif;font-size:22px;margin-bottom:8px}
+.next-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--g),#059669);border:none;border-radius:10px;color:#fff;font-family:'Jua',sans-serif;font-size:18px;cursor:pointer;margin-top:14px;transition:all .2s}
+.next-btn:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(16,185,129,.4)}
+.retry-btn{width:100%;padding:10px;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Jua',sans-serif;font-size:14px;cursor:pointer;margin-top:8px;transition:all .2s}
+.retry-btn:hover{border-color:var(--p2)}
+.saving-msg{font-size:12px;color:var(--muted);margin-top:8px}
+
+/* ── LEADERBOARD ── */
+#lbScreen{padding:0}
+.lb-header{background:var(--s1);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.lb-body{flex:1;overflow-y:auto;padding:16px 20px}
+.lb-title{font-family:'Jua',sans-serif;font-size:22px;text-align:center;margin-bottom:16px;color:var(--y)}
+.lb-row{display:flex;align-items:center;gap:12px;background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px;transition:background .2s}
+.lb-row.me{border-color:rgba(245,158,11,.5);background:rgba(245,158,11,.06)}
+.lb-rank{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;width:32px;text-align:center;flex-shrink:0}
+.rank-1{color:#ffd700}.rank-2{color:#c0c0c0}.rank-3{color:#cd7f32}
+.lb-av{font-size:26px;flex-shrink:0}
+.lb-name-wrap{flex:1}
+.lb-name{font-size:14px;font-weight:500}
+.lb-detail{font-size:11px;color:var(--muted);margin-top:2px}
+.lb-right{text-align:right}
+.lb-total{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--y);font-weight:700}
+.lb-done{font-size:10px;color:var(--muted)}
+.finish-banner{background:linear-gradient(135deg,#7c3aed,#1d4ed8);border-radius:var(--rr);padding:20px;text-align:center;margin-bottom:16px}
+.finish-banner h2{font-family:'Jua',sans-serif;font-size:22px;margin-bottom:4px}
+.finish-banner p{font-size:12px;opacity:.8}
+.btn-sm{background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:6px 14px;cursor:pointer;transition:all .2s;font-family:'Jua',sans-serif}
+.btn-sm:hover{border-color:var(--p2);color:var(--p2)}
+.btn-accent{background:linear-gradient(135deg,var(--p),var(--b));border:none;border-radius:8px;color:#fff;font-size:12px;padding:6px 14px;cursor:pointer;font-family:'Jua',sans-serif}
+</style>
+</head>
+<body>
+<canvas id="bgc"></canvas>
+
+<!-- LOBBY -->
+<div id="lobbyScreen" class="screen active">
+  <div class="lobby-box">
+    <div class="game-title">🎮 버추얼 코스 게임</div>
+    <div class="game-sub">7코스를 완주하고 동료들과 순위를 겨뤄라!</div>
+    <div class="name-row">
+      <input class="name-input" id="nameInput" placeholder="닉네임 입력 (최대 10자)" maxlength="10">
+    </div>
+    <div class="avatar-label">아바타 선택</div>
+    <div class="avatar-grid" id="avatarGrid"></div>
+    <button class="start-btn" id="startBtn" onclick="startGame()" disabled>🚀 게임 시작!</button>
+    <div style="margin-top:12px;font-size:11px;color:var(--muted)">같은 닉네임으로 접속하면 이전 기록이 이어집니다</div>
+  </div>
+</div>
+
+<!-- MAP -->
+<div id="mapScreen" class="screen">
+  <div class="map-header">
+    <div class="player-badge">
+      <span class="player-av" id="mapAv"></span>
+      <span class="player-name" id="mapName"></span>
+    </div>
+    <div class="total-score">🏆 <span id="mapTotal">0</span>점</div>
+  </div>
+  <div class="map-body">
+    <div class="map-title">📍 코스 맵</div>
+    <div class="course-list" id="courseList"></div>
+  </div>
+  <div class="map-btns">
+    <button class="lb-btn" onclick="showLeaderboard()">🏅 전체 리더보드</button>
+    <button class="reset-btn" onclick="resetScores()">↺ 초기화</button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="gameScreen" class="screen">
+  <div class="game-header">
+    <button class="back-btn" onclick="goMap()">← 맵</button>
+    <div class="game-title-sm" id="gTitle"></div>
+    <div class="timer-badge" id="timerBadge">--</div>
+  </div>
+  <div class="game-body" id="gameBody"></div>
+</div>
+
+<!-- LEADERBOARD -->
+<div id="lbScreen" class="screen">
+  <div class="lb-header">
+    <button class="btn-sm" onclick="showMap()">← 맵</button>
+    <span style="font-family:'Jua',sans-serif;font-size:18px;flex:1;text-align:center">🏅 전체 리더보드</span>
+    <button class="btn-accent" onclick="loadLeaderboard()">↻ 새로고침</button>
+  </div>
+  <div class="lb-body" id="lbBody">
+    <div style="text-align:center;padding:40px;color:var(--muted)">불러오는 중...</div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// ⚠️  여기에 본인 Supabase 정보를 입력하세요
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+const SUPABASE_KEY = 'YOUR_ANON_KEY';
+// ══════════════════════════════════════════
+
+const SB = {
+  async upsert(player_name, avatar, course_id, score) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/course_scores`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify({ player_name, avatar, course_id, score })
+    });
+    return res.ok;
+  },
+
+  async getMyScores(player_name) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/course_scores?player_name=eq.${encodeURIComponent(player_name)}&select=course_id,score`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return {};
+    const rows = await res.json();
+    const map = {};
+    rows.forEach(r => map[r.course_id] = r.score);
+    return map;
+  },
+
+  async getLeaderboard() {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/leaderboard?select=*&order=total_score.desc&limit=100`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  async deleteMyScores(player_name) {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/course_scores?player_name=eq.${encodeURIComponent(player_name)}`,
+      {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+      }
+    );
+  }
+};
+
+// ── BG CANVAS ──
+const canvas = document.getElementById('bgc');
+const ctx = canvas.getContext('2d');
+let particles = [];
+function resizeCanvas() { canvas.width = innerWidth; canvas.height = innerHeight; }
+resizeCanvas(); addEventListener('resize', resizeCanvas);
+for (let i = 0; i < 60; i++) particles.push({
+  x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+  r: Math.random() * 1.5 + .5, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3,
+  a: Math.random() * .4 + .1
+});
+(function animBg() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(168,85,247,${p.a})`; ctx.fill();
+  });
+  requestAnimationFrame(animBg);
+})();
+
+// ── DATA ──
+const AVATARS = [
+  {e:'🧑‍💼',n:'직장인'},{e:'👩‍🔬',n:'과학자'},{e:'🧙‍♂️',n:'마법사'},{e:'🥷',n:'닌자'},
+  {e:'🤖',n:'로봇'},{e:'🦸',n:'히어로'},{e:'🧜‍♀️',n:'인어'},{e:'🐉',n:'드래곤'},
+  {e:'👨‍🚀',n:'우주인'},{e:'🎅',n:'산타'},{e:'🦊',n:'여우'},{e:'🐼',n:'판다'},
+];
+const COURSES = [
+  {id:1,name:'번개 반응',emoji:'⚡',desc:'신호가 바뀌는 순간 클릭!',color:'#ef4444',game:'reaction'},
+  {id:2,name:'클릭 배틀',emoji:'👊',desc:'10초 동안 최대한 많이 클릭!',color:'#f59e0b',game:'clickbattle'},
+  {id:3,name:'지식 퀴즈',emoji:'🧠',desc:'5문제 상식 퀴즈 도전!',color:'#3b82f6',game:'quiz'},
+  {id:4,name:'짝 맞추기',emoji:'🃏',desc:'카드를 뒤집어 짝을 찾아라!',color:'#8b5cf6',game:'memory'},
+  {id:5,name:'타이핑 레이스',emoji:'⌨️',desc:'문장을 빠르게 입력!',color:'#10b981',game:'typing'},
+  {id:6,name:'색깔 스트룹',emoji:'🎨',desc:'글자의 색을 맞혀라!',color:'#ec4899',game:'stroop'},
+  {id:7,name:'순서 기억',emoji:'🔢',desc:'버튼 순서를 기억하고 따라!',color:'#f97316',game:'sequence'},
+];
+
+let player = { name: '', avatar: '🧑‍💼' };
+let scores = {};
+let currentCourse = null;
+let timerInterval = null;
+
+// ── LOBBY ──
+const avatarGrid = document.getElementById('avatarGrid');
+AVATARS.forEach((av, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'av-btn' + (i === 0 ? ' sel' : '');
+  btn.innerHTML = `${av.e}<div class="av-name">${av.n}</div>`;
+  btn.onclick = () => {
+    document.querySelectorAll('.av-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
+    player.avatar = av.e;
+  };
+  avatarGrid.appendChild(btn);
+});
+player.avatar = AVATARS[0].e;
+
+document.getElementById('nameInput').addEventListener('input', e => {
+  document.getElementById('startBtn').disabled = !e.target.value.trim();
+});
+
+async function startGame() {
+  const n = document.getElementById('nameInput').value.trim();
+  if (!n) return;
+  player.name = n;
+  const btn = document.getElementById('startBtn');
+  btn.disabled = true; btn.textContent = '불러오는 중...';
+  scores = await SB.getMyScores(n);
+  showMap();
+}
+
+// ── MAP ──
+function showMap() { showScreen('mapScreen'); updateMap(); }
+
+function updateMap() {
+  document.getElementById('mapAv').textContent = player.avatar;
+  document.getElementById('mapName').textContent = player.name;
+  const total = Object.values(scores).reduce((a, b) => a + b, 0);
+  document.getElementById('mapTotal').textContent = total;
+
+  const list = document.getElementById('courseList');
+  list.innerHTML = '';
+  COURSES.forEach((c, i) => {
+    const done = scores[c.id] !== undefined;
+    const locked = i > 0 && scores[COURSES[i-1].id] === undefined;
+    const isNext = !done && !locked;
+    const div = document.createElement('div');
+    div.className = 'course-card' + (done ? ' done' : locked ? ' locked' : isNext ? ' next-up' : '');
+    div.innerHTML = `
+      <div class="c-num" style="background:${c.color}22;color:${c.color};border:2px solid ${c.color}55">${c.id}</div>
+      <span class="c-emoji">${c.emoji}</span>
+      <div class="c-info">
+        <div class="c-name">${c.name}</div>
+        <div class="c-desc">${c.desc}</div>
+      </div>
+      <div class="c-score" style="color:${done?'#10b981':c.color}">${done ? scores[c.id]+'점' : '--'}</div>
+      <div style="font-size:20px;flex-shrink:0">${done ? '✅' : locked ? '🔒' : '▶️'}</div>`;
+    if (!locked) div.onclick = () => startCourse(c);
+    list.appendChild(div);
+  });
+}
+
+async function resetScores() {
+  if (!confirm('내 점수를 초기화할까요?')) return;
+  await SB.deleteMyScores(player.name);
+  scores = {};
+  updateMap();
+}
+
+// ── COURSE ──
+function startCourse(course) {
+  currentCourse = course;
+  document.getElementById('gTitle').textContent = course.emoji + ' ' + course.name;
+  showScreen('gameScreen');
+  clearTimer();
+  document.getElementById('gameBody').innerHTML = '';
+  ({ reaction:gameReaction, clickbattle:gameClick, quiz:gameQuiz,
+     memory:gameMemory, typing:gameTyping, stroop:gameStroop, sequence:gameSequence
+  })[course.game](document.getElementById('gameBody'));
+}
+
+function clearTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  document.getElementById('timerBadge').textContent = '--';
+}
+
+function goMap() { clearTimer(); showMap(); }
+
+async function showResult(score, msg, emoji) {
+  clearTimer();
+  const prev = scores[currentCourse.id] || 0;
+  const isNew = score > prev;
+
+  // Supabase에 저장 (best score only)
+  let saved = false;
+  if (isNew) {
+    saved = await SB.upsert(player.name, player.avatar, currentCourse.id, score);
+    if (saved) scores[currentCourse.id] = score;
+  }
+
+  const total = Object.values(scores).reduce((a, b) => a + b, 0);
+  const body = document.getElementById('gameBody');
+  body.innerHTML = `
+    <div class="result-card">
+      <span class="result-emoji">${emoji}</span>
+      <div class="result-msg">${msg}</div>
+      <div class="big-score">${score}점</div>
+      ${isNew
+        ? `<div style="color:var(--g);font-size:13px;margin-bottom:4px">🎉 최고 기록 갱신!</div>`
+        : `<div style="color:var(--muted);font-size:13px;margin-bottom:4px">최고 기록: ${prev}점</div>`}
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">누적 점수: ${total}점</div>
+      <div class="saving-msg">${isNew ? (saved ? '✅ Supabase에 저장 완료' : '⚠️ 저장 실패 (네트워크 확인)') : ''}</div>
+      <button class="next-btn" onclick="showMap()">✅ 맵으로</button>
+      <button class="retry-btn" onclick="startCourse(currentCourse)">🔄 다시 도전</button>
+    </div>`;
+}
+
+// ══ MINI GAMES ══
+
+// 1. 반응속도
+function gameReaction(body) {
+  body.innerHTML = `
+    <div class="mini-wrap">
+      <div class="mini-instruction">초록불이 켜지면 즉시 클릭! (3번 평균)</div>
+      <div class="reaction-target wait" id="rTarget">🔴</div>
+      <div id="rMsg" style="font-size:14px;color:var(--muted)">준비하세요...</div>
+    </div>`;
+  let state = 'wait', startTime = 0, attempts = 0, totalScore = 0;
+  const t = document.getElementById('rTarget');
+  const msg = document.getElementById('rMsg');
+  function nextRound() {
+    if (attempts >= 3) { showResult(Math.round(totalScore/3), `평균 반응속도 ${Math.round(1000-totalScore/3*0.9)}ms`, '⚡'); return; }
+    state = 'wait'; t.className = 'reaction-target wait'; t.textContent = '🔴';
+    msg.textContent = `${attempts+1}/3번째 - 기다리세요...`;
+    setTimeout(() => {
+      if (state !== 'wait') return;
+      state = 'go'; t.className = 'reaction-target go'; t.textContent = '🟢';
+      startTime = Date.now(); msg.textContent = '지금 클릭!';
+    }, 1500 + Math.random() * 2500);
+  }
+  t.onclick = () => {
+    if (state === 'wait') { msg.textContent = '너무 일찍! 😅'; setTimeout(nextRound, 900); return; }
+    if (state === 'go') {
+      const ms = Date.now() - startTime;
+      const sc = Math.max(0, Math.round(1000 - ms * 0.8));
+      totalScore += sc; attempts++; state = 'done';
+      t.className = 'reaction-target done'; t.textContent = '✅';
+      msg.textContent = `${ms}ms → ${sc}점`;
+      setTimeout(nextRound, 700);
+    }
+  };
+  nextRound();
+}
+
+// 2. 클릭 배틀
+function gameClick(body) {
+  const SEC = 10;
+  body.innerHTML = `
+    <div class="mini-wrap">
+      <div class="mini-instruction">${SEC}초 안에 최대한 많이 클릭!</div>
+      <div class="progress-bar"><div class="progress-fill" id="cProg" style="width:100%"></div></div>
+      <div class="click-count" id="cCount">0</div>
+      <button class="click-target" id="cBtn">👊</button>
+    </div>`;
+  let count = 0, started = false, timeLeft = SEC;
+  const btn = document.getElementById('cBtn');
+  btn.onclick = () => {
+    if (!started) {
+      started = true;
+      const iv = setInterval(() => {
+        timeLeft--;
+        document.getElementById('cProg').style.width = (timeLeft / SEC * 100) + '%';
+        document.getElementById('timerBadge').textContent = timeLeft + 's';
+        if (timeLeft <= 0) { clearInterval(iv); btn.disabled = true; setTimeout(() => showResult(Math.min(800, count * 8), `${count}번 클릭!`, '👊'), 300); }
+      }, 1000);
+      document.getElementById('timerBadge').textContent = SEC + 's';
+    }
+    if (timeLeft > 0) { count++; document.getElementById('cCount').textContent = count; }
+  };
+}
+
+// 3. 퀴즈
+function gameQuiz(body) {
+  const QS = [
+    {q:'대한민국의 수도는?',opts:['서울','부산','인천','대구'],a:0},
+    {q:'1 + 1 × 2 = ?',opts:['2','3','4','6'],a:1},
+    {q:'세계에서 가장 큰 바다는?',opts:['대서양','인도양','태평양','북극해'],a:2},
+    {q:'김치의 주 재료가 아닌 것은?',opts:['배추','고추','감자','마늘'],a:2},
+    {q:'1년은 몇 주인가요?',opts:['48주','50주','52주','54주'],a:2},
+    {q:'가장 가벼운 원소는?',opts:['산소','수소','헬륨','탄소'],a:1},
+    {q:'태양계에서 가장 큰 행성은?',opts:['토성','천왕성','목성','해왕성'],a:2},
+    {q:'빛의 속도(km/s)에 가장 가까운 것은?',opts:['30만','3만','3천','300만'],a:0},
+  ];
+  const picked = QS.sort(() => Math.random() - .5).slice(0, 5);
+  let qi = 0, score = 0;
+  function render() {
+    if (qi >= picked.length) { showResult(score, `${score/200}문제 정답!`, '🧠'); return; }
+    const q = picked[qi];
+    body.innerHTML = `
+      <div class="mini-wrap">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px">${qi+1} / ${picked.length}</div>
+        <div class="quiz-q">${q.q}</div>
+        <div class="quiz-opts">${q.opts.map((o,i)=>`<button class="quiz-opt" data-i="${i}">${o}</button>`).join('')}</div>
+      </div>`;
+    document.querySelectorAll('.quiz-opt').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('.quiz-opt').forEach(x => x.onclick = null);
+        const i = +b.dataset.i;
+        if (i === q.a) { b.classList.add('correct'); score += 200; }
+        else { b.classList.add('wrong'); document.querySelectorAll('.quiz-opt')[q.a].classList.add('correct'); }
+        qi++; setTimeout(render, 900);
+      };
+    });
+  }
+  render();
+}
+
+// 4. 기억력
+function gameMemory(body) {
+  const EMOJIS = ['🍎','🍊','🍋','🍇','🍓','🍑','🍍','🥝'];
+  const cards = [...EMOJIS,...EMOJIS].sort(() => Math.random() - .5).map((e,i) => ({id:i,emoji:e,flipped:false,matched:false}));
+  let flipped = [], moves = 0, matched = 0;
+  const start = Date.now();
+  function render() {
+    body.innerHTML = `
+      <div class="mini-wrap">
+        <div class="mini-instruction">같은 그림 카드를 찾아요! (이동: ${moves})</div>
+        <div style="display:grid;grid-template-columns:repeat(4,52px);gap:8px;margin:0 auto;width:fit-content" id="mg"></div>
+      </div>`;
+    const grid = document.getElementById('mg');
+    cards.forEach(c => {
+      const d = document.createElement('div');
+      d.className = 'mem-card' + (c.flipped||c.matched?' face-up':' face-down') + (c.matched?' matched':'');
+      d.style.fontSize = c.flipped||c.matched ? '28px' : '0';
+      d.textContent = c.emoji;
+      d.onclick = () => flip(c);
+      grid.appendChild(d);
+    });
+  }
+  function flip(c) {
+    if (c.matched||c.flipped||flipped.length>=2) return;
+    c.flipped = true; flipped.push(c); render();
+    if (flipped.length === 2) {
+      moves++;
+      if (flipped[0].emoji === flipped[1].emoji) {
+        flipped.forEach(x => x.matched = true); matched++; flipped = [];
+        if (matched === EMOJIS.length) {
+          const sec = Math.round((Date.now()-start)/1000);
+          setTimeout(() => showResult(Math.max(100, 900-moves*30-sec*5), `${moves}번 이동, ${sec}초!`, '🃏'), 400);
+        } else render();
+      } else { setTimeout(() => { flipped.forEach(x => x.flipped=false); flipped=[]; render(); }, 700); }
+    }
+  }
+  render();
+}
+
+// 5. 타이핑
+function gameTyping(body) {
+  const TEXTS = ['빠른 갈색 여우가 게으른 개를 뛰어넘었다','오늘 하루도 열심히 살아가는 당신 파이팅','모든 사람은 태어날 때부터 자유롭고 평등하다'];
+  const target = TEXTS[Math.floor(Math.random() * TEXTS.length)];
+  const start = Date.now();
+  body.innerHTML = `
+    <div class="mini-wrap">
+      <div class="mini-instruction">아래 문장을 빠르게 입력하세요!</div>
+      <div class="typing-target" id="tgt">${target}</div>
+      <input class="typing-input" id="tinp" placeholder="여기에 입력..." autocomplete="off">
+    </div>`;
+  const inp = document.getElementById('tinp');
+  const tgt = document.getElementById('tgt');
+  inp.focus();
+  inp.oninput = () => {
+    const v = inp.value;
+    tgt.innerHTML = target.split('').map((ch,i) =>
+      i < v.length ? `<span class="${v[i]===ch?'typing-correct':'typing-wrong'}">${ch}</span>` : ch
+    ).join('');
+    if (v === target) {
+      const sec = (Date.now()-start)/1000;
+      showResult(Math.max(100, Math.round(900-sec*15)), `${sec.toFixed(1)}초 완성!`, '⌨️');
+    }
+  };
+}
+
+// 6. 스트룹
+function gameStroop(body) {
+  const COLS = [{n:'빨강',c:'#ef4444'},{n:'파랑',c:'#3b82f6'},{n:'초록',c:'#10b981'},{n:'노랑',c:'#f59e0b'},{n:'보라',c:'#8b5cf6'}];
+  let q = 0, score = 0, total = 8;
+  function next() {
+    if (q >= total) { showResult(score, `${score/100}개 정답!`, '🎨'); return; }
+    const word = COLS[Math.floor(Math.random()*COLS.length)];
+    let color; do { color = COLS[Math.floor(Math.random()*COLS.length)]; } while (color === word);
+    const answerColor = Math.random() < .4 ? word : color;
+    const displayCSS = answerColor === word ? word.c : color.c;
+    body.innerHTML = `
+      <div class="mini-wrap">
+        <div class="mini-instruction">${q+1}/${total} · 글자의 <strong style="color:var(--y)">색깔</strong>을 선택!</div>
+        <div class="color-word" style="color:${displayCSS}">${word.n}</div>
+        <div class="color-opts">${COLS.map(c=>`<button class="color-opt" style="background:${c.c}22;color:${c.c};border-color:${c.c}44" data-n="${c.n}">${c.n}</button>`).join('')}</div>
+        <div id="smsg" style="margin-top:12px;font-size:12px;color:var(--muted);min-height:18px"></div>
+      </div>`;
+    const correct = displayCSS === word.c ? word.n : color.n;
+    document.querySelectorAll('.color-opt').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('.color-opt').forEach(x => x.onclick = null);
+        if (b.dataset.n === correct) { score += 100; document.getElementById('smsg').textContent = '✅ 정답!'; }
+        else { document.getElementById('smsg').textContent = `❌ 정답: ${correct}`; }
+        q++; setTimeout(next, 700);
+      };
+    });
+  }
+  next();
+}
+
+// 7. 순서 기억
+function gameSequence(body) {
+  const BTNS = [{e:'🔴',c:'#ef4444'},{e:'🔵',c:'#3b82f6'},{e:'🟢',c:'#10b981'},{e:'🟡',c:'#f59e0b'},{e:'🟣',c:'#8b5cf6'}];
+  let seq = [Math.floor(Math.random()*5)], userSeq = [], level = 1, score = 0;
+  function renderBtns(clickable) {
+    return `<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:16px 0">
+      ${BTNS.map((b,i)=>`<button class="seq-btn" style="background:${b.c}22;border:2px solid ${b.c}55;color:${b.c}" id="sb${i}" ${clickable?`onclick="window.__seq(${i})"`:''} ${clickable?'':'disabled'}>${b.e}</button>`).join('')}
+    </div>`;
+  }
+  function showSeq() {
+    body.innerHTML = `
+      <div class="mini-wrap">
+        <div class="mini-instruction">레벨 ${level} · 순서를 기억하세요!</div>
+        ${renderBtns(false)}
+        <div style="font-size:13px;color:var(--muted)">잘 보세요...</div>
+      </div>`;
+    let i = 0;
+    const iv = setInterval(() => {
+      if (i > 0) document.getElementById('sb'+seq[i-1])?.classList.remove('highlight');
+      if (i >= seq.length) { clearInterval(iv); setTimeout(inputPhase, 400); return; }
+      document.getElementById('sb'+seq[i])?.classList.add('highlight');
+      i++;
+    }, 700);
+  }
+  function inputPhase() {
+    userSeq = [];
+    body.innerHTML = `
+      <div class="mini-wrap">
+        <div class="mini-instruction">레벨 ${level} · 같은 순서로 눌러요!</div>
+        ${renderBtns(true)}
+        <div style="font-size:13px;color:var(--muted)" id="sinfo">${userSeq.length}/${seq.length}</div>
+      </div>`;
+    window.__seq = (i) => {
+      userSeq.push(i);
+      const btn = document.getElementById('sb'+i);
+      btn?.classList.add('highlight'); setTimeout(() => btn?.classList.remove('highlight'), 200);
+      const pos = userSeq.length - 1;
+      if (userSeq[pos] !== seq[pos]) {
+        score += Math.max(0, (level-1)*100);
+        setTimeout(() => showResult(score, `레벨 ${level}에서 실패!`, '🔢'), 400); return;
+      }
+      document.getElementById('sinfo').textContent = `${userSeq.length}/${seq.length}`;
+      if (userSeq.length === seq.length) {
+        score += level * 100; level++;
+        seq.push(Math.floor(Math.random()*5));
+        if (level > 7) { setTimeout(() => showResult(score, '완벽 클리어! 🎉', '🔢'), 400); }
+        else setTimeout(showSeq, 600);
+      }
+    };
+  }
+  showSeq();
+}
+
+// ── LEADERBOARD ──
+async function showLeaderboard() { showScreen('lbScreen'); loadLeaderboard(); }
+
+async function loadLeaderboard() {
+  const body = document.getElementById('lbBody');
+  body.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">🔄 불러오는 중...</div>`;
+  const rows = await SB.getLeaderboard();
+
+  const myTotal = Object.values(scores).reduce((a,b) => a+b, 0);
+  const myDone = Object.keys(scores).length;
+  const allDone = myDone >= 7;
+
+  let html = '';
+  if (allDone) html += `<div class="finish-banner"><h2>🏆 ${player.avatar} ${player.name} 완주!</h2><p>7코스 완주 · 총 ${myTotal}점</p></div>`;
+  html += `<div class="lb-title">🏅 전체 순위 (${rows.length}명 참가)</div>`;
+
+  if (!rows.length) { body.innerHTML += `<div style="text-align:center;padding:40px;color:var(--muted)">아직 참가자가 없습니다</div>`; return; }
+
+  rows.forEach((p, i) => {
+    const rank = i + 1;
+    const isMe = p.player_name === player.name;
+    const medal = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'';
+    const rankCls = rank<=3 ? `rank-${rank}` : '';
+    const cs = p.course_scores || {};
+    const detail = COURSES.map(c => cs[c.id] ? `${c.emoji}${cs[c.id]}` : null).filter(Boolean).join(' ');
+    html += `
+      <div class="lb-row${isMe?' me':''}">
+        <div class="lb-rank ${rankCls}">${medal||rank}</div>
+        <div class="lb-av">${p.avatar||'🧑‍💼'}</div>
+        <div class="lb-name-wrap">
+          <div class="lb-name">${p.player_name}${isMe?' <span style="color:var(--y);font-size:11px">(나)</span>':''}</div>
+          <div class="lb-detail">${detail||'기록 없음'}</div>
+        </div>
+        <div class="lb-right">
+          <div class="lb-total">${p.total_score}</div>
+          <div class="lb-done">${p.courses_done}/7코스</div>
+        </div>
+      </div>`;
+  });
+  body.innerHTML = html;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+</script>
+</body>
+</html>
