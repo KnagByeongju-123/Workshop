@@ -67,12 +67,18 @@ body::before{
 .stat .lab{color:var(--muted);margin-right:4px;font-size:9px}
 .stat .val{color:var(--yellow)}
 
-.game-canvas-wrap{flex:1;position:relative;overflow:hidden;background:#000}
+.game-canvas-wrap{flex:1;position:relative;overflow:hidden;background:#000;min-height:0}
 #gameCanvas{display:block;width:100%;height:100%;image-rendering:auto}
 
-.game-controls{position:absolute;left:0;right:0;bottom:0;display:flex;gap:12px;padding:14px 20px;z-index:10;pointer-events:none}
-.dir-btn{flex:1;height:80px;background:linear-gradient(135deg,rgba(0,229,255,.15),rgba(0,229,255,.08));border:2px solid var(--cyan);border-radius:12px;color:var(--cyan);font-size:32px;cursor:pointer;box-shadow:0 0 15px rgba(0,229,255,.3);transition:all .1s;pointer-events:auto;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
-.dir-btn:active{transform:scale(.95);background:rgba(0,229,255,.3);box-shadow:inset 0 0 20px rgba(0,229,255,.4)}
+.game-controls{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:12px;padding:0;z-index:10;pointer-events:none;width:auto}
+.dir-btn{width:100px;height:100px;background:linear-gradient(135deg,rgba(0,229,255,.2),rgba(0,229,255,.1));border:3px solid var(--cyan);border-radius:50%;color:var(--cyan);font-size:40px;cursor:pointer;box-shadow:0 0 20px rgba(0,229,255,.5),inset 0 0 15px rgba(0,229,255,.2);transition:all .1s;pointer-events:auto;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);font-weight:bold}
+.dir-btn:active{transform:scale(.92);background:rgba(0,229,255,.4);box-shadow:inset 0 0 25px rgba(0,229,255,.6)}
+
+/* 가로 모드일 때 버튼을 우측에 배치 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .game-controls{left:auto;right:20px;bottom:50%;transform:translateY(50%)}
+  .dir-btn{width:80px;height:80px;font-size:32px}
+}
 
 /* 일시정지/시작 안내 */
 .overlay{position:absolute;inset:0;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:16px;padding:20px;text-align:center;backdrop-filter:blur(4px)}
@@ -188,7 +194,7 @@ window.addEventListener('error', e => {
   <div class="game-canvas-wrap">
     <canvas id="gameCanvas"></canvas>
     <div class="game-controls">
-      <button class="dir-btn" id="btnThrust">⬆️</button>
+      <button class="dir-btn" id="btnThrust">▲</button>
     </div>
   </div>
 
@@ -435,11 +441,15 @@ function createCaveSegment(x, centerY, width) {
 
 function initGame() {
   resizeCanvas();
+  // 화면 크기에 따라 요소 크기 조정
+  const scale = Math.min(W, H) / 500;
+  const shipRadius = Math.max(14, 18 * scale);
+
   gameState = {
-    ship: { x: W*0.25, y: H*0.5, vy: 0, radius: 16, trail: [] },
-    caveSegments: [],  // {x, topY, bottomY}
-    obstacles: [],     // 낙하물
-    coins: [],         // 아이템
+    ship: { x: W*0.25, y: H*0.5, vy: 0, radius: shipRadius, trail: [] },
+    caveSegments: [],
+    obstacles: [],
+    coins: [],
     particles: [],
     scrollX: 0,
     speed: 2.5,
@@ -454,9 +464,10 @@ function initGame() {
     nextCoinDist: 300,
     time: 0,
     flash: 0,
+    scale: scale,
   };
 
-  // 초기 동굴 생성
+  // 초기 동굴 생성 (화면 크기 비례)
   const segW = 30;
   for(let x = 0; x < W + segW*4; x += segW) {
     const gap = H * 0.65;
@@ -468,7 +479,6 @@ function initGame() {
     });
   }
 
-  // 카운트다운 시작
   startCountdown();
 }
 
@@ -943,13 +953,14 @@ function drawShip() {
   const tilt = Math.max(-0.4, Math.min(0.4, ship.vy * 0.05));
   ctx.rotate(tilt);
   // 글로우
-  const g = ctx.createRadialGradient(0,0,0,0,0,30);
+  const glowR = ship.radius * 2;
+  const g = ctx.createRadialGradient(0,0,0,0,0,glowR);
   g.addColorStop(0, 'rgba(0,229,255,.4)');
   g.addColorStop(1, 'rgba(0,229,255,0)');
   ctx.fillStyle = g;
-  ctx.fillRect(-30,-30,60,60);
-  // 이모지
-  ctx.font = '32px sans-serif';
+  ctx.fillRect(-glowR,-glowR,glowR*2,glowR*2);
+  // 이모지 (비행선 크기의 2배)
+  ctx.font = `${ship.radius*2}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(player.avatar, 0, 0);
